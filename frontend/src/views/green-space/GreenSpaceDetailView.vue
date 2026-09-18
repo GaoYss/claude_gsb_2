@@ -38,9 +38,12 @@
       <StatCard label="绿植更换" :value="formatNumber(statistics.replacement_quantity)"
                 :hint="`共 ${formatNumber(statistics.replacement_count)} 次，金额 ${formatCurrency(statistics.replacement_amount)}`"
                 icon="Cherry" />
+      <StatCard label="土壤检测 / 施肥" :value="`${formatNumber(statistics.soil_test_count)} / ${formatNumber(statistics.fertilization_count)}`"
+                hint="检测档案数 / 施肥作业次数"
+                tone="info" icon="Coin" />
       <StatCard label="养护任务" :value="formatNumber(taskTotal)" unit="项"
                 :hint="`已完成 ${statistics.task_status.completed || 0} 项，进行中 ${(statistics.task_status.in_progress || 0) + (statistics.task_status.pending || 0)} 项`"
-                tone="info" icon="Tickets" />
+                icon="Tickets" />
     </div>
 
     <div class="panel">
@@ -127,10 +130,46 @@
             </el-tag>
           </div>
         </el-tab-pane>
+
+        <el-tab-pane label="土壤检测" name="soil">
+          <div class="tab-actions">
+            <el-button link type="primary" @click="goList('soil')">查看全部土壤检测</el-button>
+          </div>
+          <el-table :data="recentSoilTests" size="small" empty-text="暂无土壤检测档案">
+            <el-table-column prop="test_no" label="档案编号" width="150">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="goSoilDetail(row.id)">{{ row.test_no }}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="sample_date" label="采样日期" width="105" />
+            <el-table-column prop="sample_point" label="采样点位" min-width="130" show-overflow-tooltip />
+            <el-table-column label="pH" width="80" align="center">
+              <template #default="{ row }">{{ formatNumber(row.ph) }}</template>
+            </el-table-column>
+            <el-table-column label="有机质" width="90" align="center">
+              <template #default="{ row }">{{ formatNumber(row.organic_matter) }}</template>
+            </el-table-column>
+            <el-table-column label="碱解氮" width="90" align="center">
+              <template #default="{ row }">{{ formatNumber(row.alkaline_n) }}</template>
+            </el-table-column>
+            <el-table-column label="有效磷" width="90" align="center">
+              <template #default="{ row }">{{ formatNumber(row.available_p) }}</template>
+            </el-table-column>
+            <el-table-column label="速效钾" width="90" align="center">
+              <template #default="{ row }">{{ formatNumber(row.available_k) }}</template>
+            </el-table-column>
+            <el-table-column prop="lab" label="检测机构" min-width="150" show-overflow-tooltip />
+          </el-table>
+          <div v-if="latestSoilTest?.fert_advice" class="replacement-summary">
+            <span class="summary-text">最近施肥建议：</span>
+            <span class="advice-text">{{ latestSoilTest.fert_advice }}</span>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </div>
 
     <GreenSpaceFormDialog ref="formDialog" @saved="load" />
+    <SoilTestDetailDialog ref="soilDetailDialog" @register-fert="goFertilization" />
   </div>
 </template>
 
@@ -145,18 +184,26 @@ import StatCard from '@/components/common/StatCard.vue'
 import { formatArea, formatCurrency, formatDate, formatHours, formatNumber } from '@/utils/format'
 
 import GreenSpaceFormDialog from './GreenSpaceFormDialog.vue'
+import SoilTestDetailDialog from '@/views/soil/SoilTestDetailDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const formDialog = ref(null)
+const soilDetailDialog = ref(null)
 const loading = ref(false)
 const activeTab = ref('tasks')
 
 const space = ref({})
-const statistics = ref({ task_status: {}, record_count: 0, total_work_hours: 0, replacement_count: 0, replacement_quantity: 0, replacement_amount: 0 })
+const statistics = ref({
+  task_status: {}, record_count: 0, total_work_hours: 0,
+  replacement_count: 0, replacement_quantity: 0, replacement_amount: 0,
+  soil_test_count: 0, fertilization_count: 0,
+})
 const recentTasks = ref([])
 const recentRecords = ref([])
 const recentReplacements = ref([])
+const recentSoilTests = ref([])
+const latestSoilTest = ref(null)
 const replacementSummary = ref([])
 
 const taskTotal = computed(() =>
@@ -172,6 +219,8 @@ async function load() {
     recentTasks.value = data.recent_tasks || []
     recentRecords.value = data.recent_records || []
     recentReplacements.value = data.recent_replacements || []
+    recentSoilTests.value = data.recent_soil_tests || []
+    latestSoilTest.value = data.latest_soil_test || null
     replacementSummary.value = data.replacement_summary || []
   } finally {
     loading.value = false
@@ -182,10 +231,22 @@ const LIST_ROUTES = {
   tasks: 'task-list',
   records: 'record-list',
   replacements: 'replacement-list',
+  soil: 'soil-test-list',
 }
 
 function goList(name) {
   router.push({ name: LIST_ROUTES[name], query: { green_space_id: route.params.id } })
+}
+
+function goSoilDetail(id) {
+  soilDetailDialog.value?.open(id)
+}
+
+function goFertilization() {
+  router.push({
+    name: 'soil-test-list',
+    query: { green_space_id: route.params.id, tab: 'fertilizations' },
+  })
 }
 
 onMounted(load)
@@ -208,5 +269,11 @@ onMounted(load)
 
 .summary-tag {
   margin-right: 4px;
+}
+
+.advice-text {
+  color: #606266;
+  font-size: 13px;
+  line-height: 1.6;
 }
 </style>

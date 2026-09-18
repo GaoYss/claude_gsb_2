@@ -14,6 +14,7 @@ class BaseService:
     label = "记录"
     code_field = None          # 业务编号字段名，None 表示无编号
     code_width = 4
+    nested_fields = ()         # 嵌套对象字段（如配方明细），由 service 自行同步，不直接赋值
     MAX_CODE_RETRY = 5
 
     # ------------------------------------------------------------ 编号
@@ -76,7 +77,10 @@ class BaseService:
             if cls.code_field and not payload.get(cls.code_field):
                 payload[cls.code_field] = cls.generate_code()
 
-            instance = cls.model(**payload)
+            model_kwargs = {
+                key: value for key, value in payload.items() if key not in cls.nested_fields
+            }
+            instance = cls.model(**model_kwargs)
             cls.prepare_instance(instance, payload)
             cls.apply_derived(instance)
             db.session.add(instance)
@@ -107,6 +111,8 @@ class BaseService:
 
         cls.prepare_update(instance, payload)
         for field, value in payload.items():
+            if field in cls.nested_fields:
+                continue
             setattr(instance, field, value)
         cls.apply_derived(instance)
         try:

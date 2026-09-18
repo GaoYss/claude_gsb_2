@@ -13,10 +13,12 @@ from flask.cli import with_appcontext
 from .extensions import db
 from .models import GreenSpace
 from .services import (
+    FertilizationService,
     GreenSpaceService,
     MaintenanceRecordService,
     MaintenanceTaskService,
     PlantReplacementService,
+    SoilTestService,
 )
 
 SPACE_SEEDS = [
@@ -164,6 +166,26 @@ WEATHERS = ["sunny", "cloudy", "overcast", "rain", "windy"]
 WORKERS = ["王海涛", "李建民", "张凤英", "吴国强", "何丽萍", "赵春生", "孙明华", "许娟"]
 SUPPLIERS = ["萧山苗木合作社", "临安绿源苗圃", "余杭花卉基地", "杭州城西园艺公司"]
 
+# 土壤检测演示数据：（质地, pH, 有机质, 碱解氮, 有效磷, 速效钾, 目标作物）
+SOIL_PROFILES = [
+    ("loam", 6.8, 22.5, 105, 16.2, 128, "香樟、红叶石楠等乔灌木"),
+    ("clay_loam", 5.6, 13.8, 68, 7.5, 82, "马尼拉草坪与色块灌木"),
+    ("sandy_loam", 7.6, 9.6, 55, 22.8, 64, "银杏行道树与绿篱"),
+    ("loam", 6.2, 28.4, 132, 11.6, 165, "染井吉野樱与时令花卉"),
+]
+
+LABS = ["杭州市园林绿化质量检测中心", "浙江省土壤肥料检测站", "华测土壤环境实验室"]
+
+# 肥料配方候选：（名称, 养分配比, 单位用量, 方式, 施用时期）
+FERT_PRODUCTS = [
+    ("腐熟有机肥（鸡粪/牛粪）", "有机质≥45%", 150, "broadcast", "秋季基肥（9-10 月）"),
+    ("氮磷钾复合肥", "15-15-15", 30, "furrow", "春季返青前（2-3 月）"),
+    ("缓释尿素", "N 46%", 12, "hole", "生长季追施（4-6 月）"),
+    ("过磷酸钙", "P2O5 16%", 25, "furrow", "基肥配合有机肥沟施"),
+    ("硫酸钾", "K2O 50%", 10, "hole", "花芽分化期（6-7 月）"),
+    ("水溶肥（高钾型）", "15-10-30", 5, "fertigation", "花后与秋季滴灌追施"),
+]
+
 
 def register_cli(app):
     app.cli.add_command(init_db_command)
@@ -207,7 +229,8 @@ def seed_command(reset, seed_value):
     summary = generate_demo_data(random.Random(seed_value))
     click.echo(
         "演示数据写入完成：绿地 {green_space} 处、养护任务 {maintenance_task} 条、"
-        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条".format(**summary)
+        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条、"
+        "土壤检测 {soil_test} 次、施肥作业 {fertilization} 条".format(**summary)
     )
 
 
@@ -220,6 +243,8 @@ def generate_demo_data(rng):
         "maintenance_task": 0,
         "maintenance_record": 0,
         "plant_replacement": 0,
+        "soil_test": 0,
+        "fertilization": 0,
     }
 
     for index, space_seed in enumerate(SPACE_SEEDS):
@@ -231,6 +256,7 @@ def generate_demo_data(rng):
         if space.status == "archived":
             continue
 
+        fert_records = []
         for _ in range(rng.randint(2, 4)):
             task_type, title, priority, executor, description = rng.choice(TASK_SEEDS)
             planned_ahead = rng.random() < 0.25
@@ -268,6 +294,8 @@ def generate_demo_data(rng):
                 "issue_found": "局部色块缺株，已列入下月补植计划" if quality == "unqualified" else None,
             })
             counts["maintenance_record"] += 1
+            if task_type == "fertilize":
+                fert_records.append(record)
 
             replace_chance = 0.85 if task_type in {"replant", "pest", "prune"} else 0.35
             if rng.random() < replace_chance:
@@ -307,6 +335,70 @@ def generate_demo_data(rng):
                 "quality_result": "qualified",
             })
             counts["maintenance_record"] += 1
+
+        # 土壤检测档案：前两处绿地各检测两次以演示历史对比，其余检测一次
+        profile = SOIL_PROFILES[index % len(SOIL_PROFILES)]
+        rounds = 2 if index < 2 else 1
+        latest_items = []
+        latest_sample_date = today_
+        for round_index in range(rounds):
+            sample_date = today_ - timedelta(days=60 + (rounds - 1 - round_index) * 240
+                                             + rng.randint(0, 20))
+            texture, ph, om, n, p, k, crop = profile
+            # 较早一次检测整体偏差，体现改良后的指标变化
+            factor = 0.82 if round_index == 0 and rounds > 1 else 1.0
+            chosen_products = rng.sample(FERT_PRODUCTS, k=3)
+            formula_items = [
+                {
+                    "product_name": product_name,
+                    "nutrient_ratio": ratio,
+                    "dose": dose,
+                    "dose_unit": "kg_per_mu",
+                    "method": method,
+                    "timing": timing,
+                }
+                for product_name, ratio, dose, method, timing in chosen_products
+            ]
+            soil_test = SoilTestService.create({
+                "green_space_id": space.id,
+                "sample_date": sample_date,
+                "sample_point": rng.choice(["东门主入口花坛", "中心草坪", "行道树树带", "沿水坡地"]),
+                "sample_depth": rng.choice([15, 20, 20, 30]),
+                "lab": rng.choice(LABS),
+                "lab_report_no": f"TR{sample_date:%Y%m%d}-{100 + space.id * 7 + round_index}",
+                "texture": texture,
+                "ph": round(ph * (0.94 if factor < 1 else 1), 2),
+                "organic_matter": round(om * factor, 2),
+                "alkaline_n": round(n * factor, 2),
+                "available_p": round(p * factor, 2),
+                "available_k": round(k * factor, 2),
+                "target_crop": crop,
+                "formula_items": formula_items,
+            })
+            counts["soil_test"] += 1
+            latest_items = list(soil_test.formula_items)
+            latest_sample_date = sample_date
+
+        # 施肥作业：引用最近一次检测的配方并回填实际用量
+        for item in latest_items[: rng.randint(2, 3)]:
+            linked_record = rng.choice(fert_records) if fert_records and rng.random() < 0.6 else None
+            actual_dose = round(float(item.dose) * rng.uniform(0.85, 1.12), 1)
+            FertilizationService.create({
+                "green_space_id": space.id,
+                "soil_test_id": item.soil_test_id,
+                "formula_item_id": item.id,
+                "maintenance_record_id": linked_record.id if linked_record else None,
+                "product_name": item.product_name,
+                "planned_dose": float(item.dose),
+                "planned_unit": item.dose_unit,
+                "actual_dose": actual_dose,
+                "actual_unit": item.dose_unit,
+                "method": item.method,
+                "fert_date": latest_sample_date + timedelta(days=rng.randint(5, 45)),
+                "operator": rng.choice(WORKERS),
+                "remark": "按配方施肥，施后及时浇水" if rng.random() < 0.5 else None,
+            })
+            counts["fertilization"] += 1
 
     # 一条已取消任务，覆盖全部状态场景
     first_space = db.session.query(GreenSpace).order_by(GreenSpace.id.asc()).first()

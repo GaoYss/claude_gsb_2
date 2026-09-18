@@ -4,5 +4,14 @@ from .green_space import GreenSpace
 from .maintenance_record import MaintenanceRecord
 from .maintenance_task import MaintenanceTask
 from .plant_replacement import PlantReplacement
+from .soil_test import FertilizationRecord, SoilFormulaItem, SoilTest
 
-__all__ = ["GreenSpace", "MaintenanceTask", "MaintenanceRecord", "PlantReplacement"]
+__all__ = [
+    "GreenSpace",
+    "MaintenanceTask",
+    "MaintenanceRecord",
+    "PlantReplacement",
+    "SoilTest",
+    "SoilFormulaItem",
+    "FertilizationRecord",
+]

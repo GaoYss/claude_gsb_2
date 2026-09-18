@@ -130,6 +130,37 @@ MEASURE_UNIT = EnumGroup("measure_unit", [
     ("clump", "丛"),
 ])
 
+# ---------------------------------------------------------------- 土壤检测
+SOIL_GRADE = EnumGroup("soil_grade", [
+    ("very_low", "极低"),
+    ("low", "偏低"),
+    ("medium", "适中"),
+    ("high", "偏高"),
+    ("very_high", "过高"),
+])
+
+SOIL_TEXTURE = EnumGroup("soil_texture", [
+    ("sandy", "砂土"),
+    ("sandy_loam", "砂壤土"),
+    ("loam", "壤土"),
+    ("clay_loam", "黏壤土"),
+    ("clay", "黏土"),
+])
+
+FERT_METHOD = EnumGroup("fert_method", [
+    ("broadcast", "撒施"),
+    ("hole", "穴施"),
+    ("furrow", "沟施"),
+    ("fertigation", "水肥一体化"),
+    ("foliar", "叶面喷施"),
+])
+
+FERT_DOSE_UNIT = EnumGroup("fert_dose_unit", [
+    ("kg_per_mu", "千克/亩"),
+    ("kg", "千克（总用量）"),
+    ("g_per_sqm", "克/平方米"),
+])
+
 # 前端下拉与文档共用的一份字典清单
 ENUM_GROUPS = {
     "green_space_type": GREEN_SPACE_TYPE,
@@ -144,6 +175,10 @@ ENUM_GROUPS = {
     "replacement_reason": REPLACEMENT_REASON,
     "old_plant_status": OLD_PLANT_STATUS,
     "measure_unit": MEASURE_UNIT,
+    "soil_grade": SOIL_GRADE,
+    "soil_texture": SOIL_TEXTURE,
+    "fert_method": FERT_METHOD,
+    "fert_dose_unit": FERT_DOSE_UNIT,
 }
 
 

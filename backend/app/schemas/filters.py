@@ -110,3 +110,36 @@ def replacement_filters(args):
     filters["date_from"] = _date(args, "date_from")
     filters["date_to"] = _date(args, "date_to")
     return filters
+
+
+def soil_test_filters(args):
+    filters = {}
+    green_space_id = _int(args, "green_space_id")
+    if green_space_id:
+        filters["green_space_id"] = green_space_id
+    lab = _text(args, "lab")
+    if lab:
+        filters["lab"] = lab
+    keyword = _text(args, "keyword")
+    if keyword:
+        filters["keyword"] = keyword
+    filters["date_from"] = _date(args, "date_from")
+    filters["date_to"] = _date(args, "date_to")
+    return filters
+
+
+def fertilization_filters(args):
+    filters = {}
+    for key in ("green_space_id", "soil_test_id", "formula_item_id", "maintenance_record_id"):
+        value = _int(args, key)
+        if value:
+            filters[key] = value
+    method = _enum(args, "method", "fert_method")
+    if method:
+        filters["method"] = method
+    keyword = _text(args, "keyword")
+    if keyword:
+        filters["keyword"] = keyword
+    filters["date_from"] = _date(args, "date_from")
+    filters["date_to"] = _date(args, "date_to")
+    return filters

@@ -44,6 +44,12 @@ const routes = [
         component: () => import('@/views/replacement/ReplacementListView.vue'),
         meta: { title: '绿植更换', icon: 'Cherry' },
       },
+      {
+        path: 'soil-tests',
+        name: 'soil-test-list',
+        component: () => import('@/views/soil/SoilTestListView.vue'),
+        meta: { title: '土壤检测', icon: 'Coin' },
+      },
     ],
   },
   {

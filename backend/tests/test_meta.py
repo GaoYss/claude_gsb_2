@@ -23,9 +23,24 @@ def test_enums_cover_all_business_groups(api):
         "replacement_reason",
         "old_plant_status",
         "measure_unit",
+        "soil_grade",
+        "soil_texture",
+        "fert_method",
+        "fert_dose_unit",
     }
     assert expected.issubset(set(enums))
     assert {"value": "park", "label": "公园绿地"} in enums["green_space_type"]
+
+
+def test_soil_indicators_expose_metadata(api):
+    data = api.data(api.get("/api/v1/meta/soil-indicators"))
+    indicators = {item["key"]: item for item in data["indicators"]}
+    assert set(indicators) == {
+        "ph", "organic_matter", "alkaline_n", "available_p", "available_k",
+    }
+    assert indicators["ph"]["unit"] == ""
+    assert indicators["organic_matter"]["unit"] == "g/kg"
+    assert indicators["available_p"]["breakpoints"] == [5, 10, 20, 40]
 
 
 def test_unknown_api_returns_unified_404(api):
