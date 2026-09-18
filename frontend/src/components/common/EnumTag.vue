@@ -21,6 +21,13 @@ const TAG_TYPES = {
   quality_result: { qualified: 'success', pending: 'warning', unqualified: 'danger' },
   maintenance_grade: { level1: 'success', level2: 'primary', level3: 'info' },
   replacement_reason: { dead: 'danger', disease: 'warning', aging: 'info', upgrade: 'primary' },
+  ph_level: {
+    strong_acid: 'danger', acid: 'warning', neutral: 'success',
+    alkaline: 'warning', strong_alkaline: 'danger',
+  },
+  organic_level: { very_low: 'danger', low: 'warning', medium: 'primary', high: 'success' },
+  nutrient_level: { lack: 'danger', low: 'warning', medium: 'primary', high: 'success' },
+  application_status: { planned: 'info', applied: 'success', skipped: 'info' },
 }
 
 const meta = useMetaStore()

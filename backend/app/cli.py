@@ -13,10 +13,12 @@ from flask.cli import with_appcontext
 from .extensions import db
 from .models import GreenSpace
 from .services import (
+    FertilizationService,
     GreenSpaceService,
     MaintenanceRecordService,
     MaintenanceTaskService,
     PlantReplacementService,
+    SoilTestService,
 )
 
 SPACE_SEEDS = [
@@ -163,6 +165,16 @@ OLD_STATUS = ["dead", "dying", "diseased", "aging", "normal"]
 WEATHERS = ["sunny", "cloudy", "overcast", "rain", "windy"]
 WORKERS = ["王海涛", "李建民", "张凤英", "吴国强", "何丽萍", "赵春生", "孙明华", "许娟"]
 SUPPLIERS = ["萧山苗木合作社", "临安绿源苗圃", "余杭花卉基地", "杭州城西园艺公司"]
+LAB_ORGS = ["市园林科学研究所检测中心", "省自然资源检测有限公司", "浙大环境资源检测实验室"]
+
+# 土壤检测情景：(pH, 有机质g/kg, 碱解氮, 有效磷, 速效钾, 质地)
+SOIL_SCENARIOS = [
+    (6.8, 26.5, 118.0, 22.4, 146.0, "loam"),
+    (5.6, 15.2, 82.0, 12.0, 96.0, "clay_loam"),
+    (7.8, 18.0, 68.0, 9.5, 128.0, "loamy_sand"),
+    (4.8, 8.6, 46.0, 4.2, 58.0, "clay"),
+    (7.1, 32.4, 132.0, 38.0, 168.0, "loam"),
+]
 
 
 def register_cli(app):
@@ -207,7 +219,8 @@ def seed_command(reset, seed_value):
     summary = generate_demo_data(random.Random(seed_value))
     click.echo(
         "演示数据写入完成：绿地 {green_space} 处、养护任务 {maintenance_task} 条、"
-        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条".format(**summary)
+        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条、"
+        "土壤检测 {soil_test} 份、施肥作业 {fertilization} 条".format(**summary)
     )
 
 
@@ -220,6 +233,8 @@ def generate_demo_data(rng):
         "maintenance_task": 0,
         "maintenance_record": 0,
         "plant_replacement": 0,
+        "soil_test": 0,
+        "fertilization": 0,
     }
 
     for index, space_seed in enumerate(SPACE_SEEDS):
@@ -307,6 +322,67 @@ def generate_demo_data(rng):
                 "quality_result": "qualified",
             })
             counts["maintenance_record"] += 1
+
+        # 土壤检测档案：每处在用绿地 1-2 次检测，同一绿地可形成历史对比
+        for round_index in range(rng.randint(1, 2)):
+            scenario = rng.choice(SOIL_SCENARIOS)
+            ph, organic, nitrogen, phosphorus, potassium, texture = scenario
+            first_sample = today_ - timedelta(days=rng.randint(120, 420))
+            sample_date = (
+                first_sample
+                if round_index == 0
+                else first_sample + timedelta(days=rng.randint(150, 300))
+            )
+            if sample_date > today_ - timedelta(days=5):
+                sample_date = today_ - timedelta(days=rng.randint(20, 90))
+            soil_test = SoilTestService.create({
+                "green_space_id": space.id,
+                "sample_date": sample_date,
+                "sample_point": rng.choice([
+                    "中央草坪 5 点混合样", "主入口花境 S 形布点", "行道树树穴混合样",
+                    "色块带 3 点混合样", "环湖步道绿地混合样",
+                ]),
+                "sample_depth": rng.choice([15, 20, 20, 30]),
+                "lab_org": rng.choice(LAB_ORGS),
+                "report_no": f"TR-{sample_date:%Y%m%d}-{rng.randint(100, 999)}",
+                "soil_texture": texture,
+                "ph_value": ph,
+                "organic_matter": organic,
+                "alkali_nitrogen": nitrogen,
+                "available_phosphorus": phosphorus,
+                "available_potassium": potassium,
+                "bulk_density": round(rng.uniform(1.15, 1.45), 2),
+                "moisture": round(rng.uniform(12, 32), 1),
+                "target_plants": (space.plant_summary or "")[:60] or "园林地被与灌木",
+                "operator": rng.choice(WORKERS),
+                "conclusion": "检测指标已用于制定本季施肥配方，建议结合雨情适时施肥。",
+            })
+            counts["soil_test"] += 1
+
+            # 约 3/4 的检测配方已被施肥作业引用，部分回填实际用量
+            if rng.random() < 0.75:
+                plan_area = int(float(space.area_sqm) * rng.choice([0.3, 0.5, 0.8, 1.0]))
+                applied = rng.random() < 0.8
+                application = {
+                    "soil_test_id": soil_test.id,
+                    "plan_date": sample_date + timedelta(days=rng.randint(7, 30)),
+                    "planned_area": plan_area,
+                    "executor": rng.choice(["绿化一班", "绿化二班", "绿化三班", "植保班"]),
+                }
+                if applied:
+                    actual_area = int(plan_area * rng.choice([0.92, 1.0, 1.05]))
+                    application.update({
+                        "status": "applied",
+                        "applied_date": application["plan_date"] + timedelta(days=rng.randint(0, 4)),
+                        "actual_dosage": round(
+                            float(soil_test.dosage_per_sqm) * rng.choice([0.9, 1.0, 1.1, 1.2]), 3
+                        ),
+                        "actual_area": actual_area,
+                        "worker": rng.choice(WORKERS),
+                        "work_hours": rng.choice([4, 6, 8, 10]),
+                    })
+                FertilizationService.create(application)
+                counts["fertilization"] += 1
 
     # 一条已取消任务，覆盖全部状态场景
     first_space = db.session.query(GreenSpace).order_by(GreenSpace.id.asc()).first()

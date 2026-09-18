@@ -130,6 +130,63 @@ MEASURE_UNIT = EnumGroup("measure_unit", [
     ("clump", "丛"),
 ])
 
+# ---------------------------------------------------------------- 土壤检测
+SOIL_TEXTURE = EnumGroup("soil_texture", [
+    ("sand", "砂土"),
+    ("loamy_sand", "砂壤土"),
+    ("loam", "壤土"),
+    ("clay_loam", "黏壤土"),
+    ("clay", "黏土"),
+])
+
+PH_LEVEL = EnumGroup("ph_level", [
+    ("strong_acid", "强酸性"),
+    ("acid", "酸性"),
+    ("neutral", "中性"),
+    ("alkaline", "碱性"),
+    ("strong_alkaline", "强碱性"),
+])
+
+ORGANIC_LEVEL = EnumGroup("organic_level", [
+    ("very_low", "极低"),
+    ("low", "偏低"),
+    ("medium", "中等"),
+    ("high", "丰富"),
+])
+
+NUTRIENT_LEVEL = EnumGroup("nutrient_level", [
+    ("lack", "缺乏"),
+    ("low", "偏低"),
+    ("medium", "中等"),
+    ("high", "丰富"),
+])
+
+FERTILIZER_TYPE = EnumGroup("fertilizer_type", [
+    ("compound", "复合肥"),
+    ("urea", "氮肥（尿素）"),
+    ("phosphate", "磷肥（过磷酸钙）"),
+    ("potassium", "钾肥（硫酸钾）"),
+    ("organic", "有机肥"),
+    ("slow_release", "缓释肥"),
+    ("trace", "微量元素肥"),
+    ("other", "其他肥料"),
+])
+
+FERTILIZATION_METHOD = EnumGroup("fertilization_method", [
+    ("broadcast", "撒施"),
+    ("hole", "穴施"),
+    ("furrow", "沟施"),
+    ("drench", "随水冲施"),
+    ("foliar", "叶面喷施"),
+    ("topdress", "追肥"),
+])
+
+APPLICATION_STATUS = EnumGroup("application_status", [
+    ("planned", "待执行"),
+    ("applied", "已施肥"),
+    ("skipped", "已跳过"),
+])
+
 # 前端下拉与文档共用的一份字典清单
 ENUM_GROUPS = {
     "green_space_type": GREEN_SPACE_TYPE,
@@ -144,6 +201,13 @@ ENUM_GROUPS = {
     "replacement_reason": REPLACEMENT_REASON,
     "old_plant_status": OLD_PLANT_STATUS,
     "measure_unit": MEASURE_UNIT,
+    "soil_texture": SOIL_TEXTURE,
+    "ph_level": PH_LEVEL,
+    "organic_level": ORGANIC_LEVEL,
+    "nutrient_level": NUTRIENT_LEVEL,
+    "fertilizer_type": FERTILIZER_TYPE,
+    "fertilization_method": FERTILIZATION_METHOD,
+    "application_status": APPLICATION_STATUS,
 }
 
 

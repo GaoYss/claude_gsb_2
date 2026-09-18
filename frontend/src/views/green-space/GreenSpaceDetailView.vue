@@ -38,6 +38,10 @@
       <StatCard label="绿植更换" :value="formatNumber(statistics.replacement_quantity)"
                 :hint="`共 ${formatNumber(statistics.replacement_count)} 次，金额 ${formatCurrency(statistics.replacement_amount)}`"
                 icon="Cherry" />
+      <StatCard label="土壤检测" :value="formatNumber(soilTestCount)" unit="份"
+                :hint="latestSoil ? `最近 ${formatDate(latestSoil.sample_date)} · pH ${formatNumber(latestSoil.ph_value)}` : '暂无检测档案'"
+                :tone="latestSoil && latestSoil.ph_level !== 'neutral' ? 'warning' : 'default'"
+                icon="Histogram" />
       <StatCard label="养护任务" :value="formatNumber(taskTotal)" unit="项"
                 :hint="`已完成 ${statistics.task_status.completed || 0} 项，进行中 ${(statistics.task_status.in_progress || 0) + (statistics.task_status.pending || 0)} 项`"
                 tone="info" icon="Tickets" />
@@ -127,10 +131,94 @@
             </el-tag>
           </div>
         </el-tab-pane>
+
+        <el-tab-pane :label="`土壤检测${soilTestCount ? `（${soilTestCount}）` : ''}`" name="soil">
+          <div class="tab-actions">
+            <el-button type="primary" size="small" :icon="'Plus'" @click="openSoilForm">登记土壤检测</el-button>
+            <el-button link type="primary" @click="goList('soil')">查看全部检测档案</el-button>
+          </div>
+
+          <div v-if="latestSoil" class="latest-soil">
+            <div class="latest-soil__head">
+              <span class="panel-title">最近一次检测 · {{ latestSoil.test_no }}</span>
+              <span class="summary-text">{{ formatDate(latestSoil.sample_date) }} · {{ latestSoil.lab_org }}</span>
+            </div>
+            <div class="latest-soil__indicators">
+              <div class="soil-indicator">
+                <span class="soil-indicator__label">pH</span>
+                <span class="soil-indicator__value">{{ formatNumber(latestSoil.ph_value) }}</span>
+                <EnumTag group="ph_level" :value="latestSoil.ph_level" :label="latestSoil.ph_level_label" />
+              </div>
+              <div class="soil-indicator">
+                <span class="soil-indicator__label">有机质 g/kg</span>
+                <span class="soil-indicator__value">{{ formatNumber(latestSoil.organic_matter) }}</span>
+                <EnumTag group="organic_level" :value="latestSoil.organic_level" :label="latestSoil.organic_level_label" />
+              </div>
+              <div class="soil-indicator">
+                <span class="soil-indicator__label">碱解氮</span>
+                <span class="soil-indicator__value">{{ formatNumber(latestSoil.alkali_nitrogen) }}</span>
+                <EnumTag group="nutrient_level" :value="latestSoil.nitrogen_level" :label="latestSoil.nitrogen_level_label" />
+              </div>
+              <div class="soil-indicator">
+                <span class="soil-indicator__label">有效磷</span>
+                <span class="soil-indicator__value">{{ formatNumber(latestSoil.available_phosphorus) }}</span>
+                <EnumTag group="nutrient_level" :value="latestSoil.phosphorus_level" :label="latestSoil.phosphorus_level_label" />
+              </div>
+              <div class="soil-indicator">
+                <span class="soil-indicator__label">速效钾</span>
+                <span class="soil-indicator__value">{{ formatNumber(latestSoil.available_potassium) }}</span>
+                <EnumTag group="nutrient_level" :value="latestSoil.potassium_level" :label="latestSoil.potassium_level_label" />
+              </div>
+            </div>
+            <div class="latest-soil__formula">
+              <span class="summary-text">
+                <b>推荐配方：</b>{{ latestSoil.fertilizer_name || '-' }}
+                （{{ latestSoil.nutrient_ratio || '-' }}），
+                {{ formatNumber(latestSoil.dosage_per_sqm) }} kg/㎡，
+                {{ latestSoil.application_method_label || '-' }}，
+                已引用 {{ latestSoil.application_count || 0 }} 次
+              </span>
+            </div>
+          </div>
+          <el-empty v-else description="该绿地暂无土壤检测档案" :image-size="60" />
+
+          <el-table :data="recentSoilTests" size="small" empty-text="暂无检测档案" class="soil-table">
+            <el-table-column prop="test_no" label="档案编号" width="160" />
+            <el-table-column prop="sample_date" label="采样日期" width="105" />
+            <el-table-column prop="sample_point" label="采样点位" min-width="150" show-overflow-tooltip />
+            <el-table-column label="pH" width="90">
+              <template #default="{ row }">
+                {{ formatNumber(row.ph_value) }}
+                <EnumTag group="ph_level" :value="row.ph_level" :label="row.ph_level_label" />
+              </template>
+            </el-table-column>
+            <el-table-column label="有机质" width="100">
+              <template #default="{ row }">{{ formatNumber(row.organic_matter) }}</template>
+            </el-table-column>
+            <el-table-column label="氮/磷/钾" min-width="160">
+              <template #default="{ row }">
+                {{ formatNumber(row.alkali_nitrogen) }} /
+                {{ formatNumber(row.available_phosphorus) }} /
+                {{ formatNumber(row.available_potassium) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="推荐肥料" min-width="130" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.fertilizer_name || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="150">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openSoilDetail(row)">档案/对比</el-button>
+                <el-button link type="primary" @click="openSoilForm(row)">编辑</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
       </el-tabs>
     </div>
 
     <GreenSpaceFormDialog ref="formDialog" @saved="load" />
+    <SoilTestFormDialog ref="soilFormDialog" @saved="load" />
+    <SoilTestDetailDrawer ref="soilDetailDrawer" @changed="load" />
   </div>
 </template>
 
@@ -145,23 +233,31 @@ import StatCard from '@/components/common/StatCard.vue'
 import { formatArea, formatCurrency, formatDate, formatHours, formatNumber } from '@/utils/format'
 
 import GreenSpaceFormDialog from './GreenSpaceFormDialog.vue'
+import SoilTestDetailDrawer from '@/views/soil/SoilTestDetailDrawer.vue'
+import SoilTestFormDialog from '@/views/soil/SoilTestFormDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const formDialog = ref(null)
+const soilFormDialog = ref(null)
+const soilDetailDrawer = ref(null)
 const loading = ref(false)
-const activeTab = ref('tasks')
+const activeTab = ref(route.query.tab === 'soil' ? 'soil' : 'tasks')
 
 const space = ref({})
 const statistics = ref({ task_status: {}, record_count: 0, total_work_hours: 0, replacement_count: 0, replacement_quantity: 0, replacement_amount: 0 })
 const recentTasks = ref([])
 const recentRecords = ref([])
 const recentReplacements = ref([])
+const recentSoilTests = ref([])
+const latestSoil = ref(null)
+const soilTestTotal = ref(0)
 const replacementSummary = ref([])
 
 const taskTotal = computed(() =>
   Object.values(statistics.value.task_status || {}).reduce((sum, value) => sum + value, 0),
 )
+const soilTestCount = computed(() => soilTestTotal.value)
 
 async function load() {
   loading.value = true
@@ -172,6 +268,9 @@ async function load() {
     recentTasks.value = data.recent_tasks || []
     recentRecords.value = data.recent_records || []
     recentReplacements.value = data.recent_replacements || []
+    recentSoilTests.value = data.recent_soil_tests || []
+    latestSoil.value = data.latest_soil_test || null
+    soilTestTotal.value = data.soil_test_count || 0
     replacementSummary.value = data.replacement_summary || []
   } finally {
     loading.value = false
@@ -182,10 +281,22 @@ const LIST_ROUTES = {
   tasks: 'task-list',
   records: 'record-list',
   replacements: 'replacement-list',
+  soil: 'soil-test-list',
 }
 
 function goList(name) {
   router.push({ name: LIST_ROUTES[name], query: { green_space_id: route.params.id } })
+}
+
+function openSoilForm(row = null) {
+  const preset = space.value?.code
+    ? { id: space.value.id, code: space.value.code, name: space.value.name }
+    : null
+  soilFormDialog.value.open(row, { greenSpaceId: Number(route.params.id), preset })
+}
+
+function openSoilDetail(row) {
+  soilDetailDrawer.value.open(row.id)
 }
 
 onMounted(load)
@@ -208,5 +319,48 @@ onMounted(load)
 
 .summary-tag {
   margin-right: 4px;
+}
+
+.latest-soil {
+  border: 1px solid var(--gs-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.latest-soil__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.latest-soil__indicators {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.soil-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.soil-indicator__label {
+  color: #909399;
+  font-size: 12px;
+}
+
+.soil-indicator__value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.soil-table {
+  margin-top: 8px;
 }
 </style>

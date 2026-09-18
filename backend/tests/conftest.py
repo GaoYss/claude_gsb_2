@@ -151,6 +151,48 @@ def make_replacement(make_space):
 
 
 @pytest.fixture()
+def make_soil_test(make_space):
+    from app.services import SoilTestService
+
+    def _make(space=None, **overrides):
+        space = space or make_space()
+        payload = {
+            "green_space_id": space.id,
+            "sample_date": date(2026, 3, 1),
+            "sample_point": "中央草坪 5 点混合样",
+            "lab_org": "市园林科学研究所检测中心",
+            "ph_value": 6.8,
+            "organic_matter": 18.5,
+            "alkali_nitrogen": 86.0,
+            "available_phosphorus": 12.4,
+            "available_potassium": 132.0,
+            "target_plants": "马尼拉草坪、金森女贞",
+        }
+        payload.update(overrides)
+        return SoilTestService.create(payload)
+
+    return _make
+
+
+@pytest.fixture()
+def make_fertilization(make_soil_test):
+    from app.services import FertilizationService
+
+    def _make(test=None, **overrides):
+        test = test or make_soil_test()
+        payload = {
+            "soil_test_id": test.id,
+            "plan_date": date(2026, 3, 20),
+            "planned_area": 2000,
+            "executor": "绿化二班",
+        }
+        payload.update(overrides)
+        return FertilizationService.create(payload)
+
+    return _make
+
+
+@pytest.fixture()
 def seeded(app):
     """写入演示数据（固定随机种子，保证断言稳定）。"""
 

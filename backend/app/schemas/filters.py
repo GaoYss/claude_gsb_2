@@ -38,6 +38,16 @@ def _flag(args, key):
     return str(args.get(key, "")).strip().lower() in {"1", "true", "yes", "y"}
 
 
+# 土壤各养分等级列对应的字典分组
+_LEVEL_GROUP = {
+    "ph_level": "ph_level",
+    "organic_level": "organic_level",
+    "nitrogen_level": "nutrient_level",
+    "phosphorus_level": "nutrient_level",
+    "potassium_level": "nutrient_level",
+}
+
+
 def green_space_filters(args):
     filters = {}
     for key, group_key in (("green_type", "green_space_type"),
@@ -104,6 +114,47 @@ def replacement_filters(args):
         value = _enum(args, key, group_key)
         if value:
             filters[key] = value
+    keyword = _text(args, "keyword")
+    if keyword:
+        filters["keyword"] = keyword
+    filters["date_from"] = _date(args, "date_from")
+    filters["date_to"] = _date(args, "date_to")
+    return filters
+
+
+def soil_test_filters(args):
+    filters = {}
+    green_space_id = _int(args, "green_space_id")
+    if green_space_id:
+        filters["green_space_id"] = green_space_id
+    soil_texture = _enum(args, "soil_texture", "soil_texture")
+    if soil_texture:
+        filters["soil_texture"] = soil_texture
+    keyword = _text(args, "keyword")
+    if keyword:
+        filters["keyword"] = keyword
+    filters["date_from"] = _date(args, "date_from")
+    filters["date_to"] = _date(args, "date_to")
+    # 缺素筛选：只看某一养分缺乏/偏低的检测
+    for key in ("ph_level", "organic_level", "nitrogen_level", "phosphorus_level", "potassium_level"):
+        value = _enum(args, key, _LEVEL_GROUP[key])
+        if value:
+            filters[key] = value
+    return filters
+
+
+def fertilization_filters(args):
+    filters = {}
+    for key in ("soil_test_id", "green_space_id"):
+        value = _int(args, key)
+        if value:
+            filters[key] = value
+    status = _enum(args, "status", "application_status")
+    if status:
+        filters["status"] = status
+    fertilizer_type = _enum(args, "fertilizer_type", "fertilizer_type")
+    if fertilizer_type:
+        filters["fertilizer_type"] = fertilizer_type
     keyword = _text(args, "keyword")
     if keyword:
         filters["keyword"] = keyword
